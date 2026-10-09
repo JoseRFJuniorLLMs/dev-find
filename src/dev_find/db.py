@@ -152,6 +152,14 @@ class Database:
                 (iso(now), iso(now + timedelta(days=days)), city_id),
             )
 
+    def mark_city_retry(self, city_id: int, hours: int = 6) -> None:
+        retry = utcnow() + timedelta(hours=hours)
+        with self.connect() as con:
+            con.execute(
+                "UPDATE cities SET next_scan_at=? WHERE id=?",
+                (iso(retry), city_id),
+            )
+
     def upsert_company(self, name: str, domain: str, website: str, city: str, state: str, source: str, source_query: str) -> int:
         now = iso()
         with self.connect() as con:
