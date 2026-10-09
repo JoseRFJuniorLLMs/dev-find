@@ -1,0 +1,17 @@
+Olá, equipe de {company}.
+
+Meu nome é {name} e sou {role}, com experiência em inteligência artificial generativa, engenharia de dados, engenharia de software, Python, Java, arquiteturas cloud e automação.
+
+Estou entrando em contato para me candidatar a oportunidades compatíveis com meu perfil técnico na {company}. Tenho experiência em desenvolvimento de sistemas e projetos de IA e dados, inclusive em ambientes de alta complexidade.
+
+Encaminho meu currículo em anexo para avaliação.
+
+LinkedIn: {linkedin}
+GitHub: {github}
+
+Caso este não seja o canal responsável pelo recrutamento, agradeço se puderem encaminhar a mensagem ao RH ou à equipe de talentos.
+
+Atenciosamente,
+{name}
+{phone}
+{email}
