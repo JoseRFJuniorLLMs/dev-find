@@ -72,3 +72,8 @@ python -m dev_find add-city "São Carlos" SP
 ## Segurança
 
 Não coloque senha SMTP, CV, banco SQLite ou arquivos `.env` no repositório. Use App Password/OAuth ou uma conta dedicada para envio. Respeite termos dos provedores de busca e dos sites visitados.
+
+
+## Deploy na VM
+
+Consulte [agente.md](agente.md) para instalação, configuração do CV privado, SMTP, systemd, atualização, backup, logs e regras operacionais do agente.
