@@ -1,0 +1,22 @@
+[Unit]
+Description=dev-find continuous job outreach
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=devfind
+Group=devfind
+WorkingDirectory=/opt/dev-find
+EnvironmentFile=/etc/dev-find.env
+ExecStart=/opt/dev-find/.venv/bin/python -m dev_find daemon
+Restart=always
+RestartSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/dev-find /opt/dev-find-private
+
+[Install]
+WantedBy=multi-user.target
