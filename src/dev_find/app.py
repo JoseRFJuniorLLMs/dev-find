@@ -54,6 +54,7 @@ class DevFind:
             self.db.mark_city_scanned(row["id"],self.s.city_rescan_days)
             log.info("scan_done city=%s companies=%s contacts=%s",row["city"],result["companies"],result["contacts"])
         except Exception:
+            self.db.mark_city_retry(row["id"], 6)
             log.exception("scan_error city=%s",row["city"])
         return True
 
