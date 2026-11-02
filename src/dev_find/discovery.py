@@ -65,6 +65,22 @@ class SearchDiscovery:
         rows = DDGS().text(query, region="br-pt", safesearch="moderate", max_results=self.s.max_results_per_query)
         return [{"title":x.get("title",""),"href":x.get("href","")} for x in (rows or [])]
 
+    def discover_registered(self, name: str, city: str, state: str):
+        query=f'"{name}" "{city}" {state} empresa TI site oficial'
+        try:
+            rows=self._brave(query) if self.s.brave_search_api_key else self._ddgs(query)
+        except Exception:
+            return []
+        seen=set()
+        out=[]
+        for row in rows:
+            item=normalize(row.get("href",""))
+            if item and item[0] not in seen:
+                domain,website=item
+                seen.add(domain)
+                out.append(CompanyCandidate(name,website,domain,"receita+web",query))
+        return out
+
     def discover(self, city: str, state: str) -> list[CompanyCandidate]:
         seen, out = set(), []
         for pattern in QUERIES:

@@ -6,6 +6,9 @@ import logging
 
 from .app import DevFind
 from .config import Settings
+from .catalog import import_cities, export_catalog
+from .registry import import_cnpj
+from .receita_sync import sync_cnpj
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -18,6 +21,17 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("send-once")
     sub.add_parser("daemon")
     sub.add_parser("status")
+    coverage=sub.add_parser("import-cities")
+    coverage.add_argument("--state")
+    coverage.add_argument("--all-states",action="store_true")
+    catalog=sub.add_parser("export-catalog")
+    catalog.add_argument("--output",required=True)
+    registry=sub.add_parser("import-cnpj")
+    registry.add_argument("--establishments",type=__import__("pathlib").Path,nargs="+",required=True)
+    registry.add_argument("--municipalities",type=__import__("pathlib").Path,required=True)
+    registry.add_argument("--companies",type=__import__("pathlib").Path,nargs="+",required=True)
+    registry.add_argument("--state")
+    sub.add_parser("sync-cnpj")
     add=sub.add_parser("add-city")
     add.add_argument("city")
     add.add_argument("state")
@@ -44,6 +58,15 @@ def main() -> None:
         return
     elif args.command=="status":
         out=app.db.stats()
+    elif args.command=="import-cities":
+        out={"cities":import_cities(app.db,args.state)}
+    elif args.command=="export-catalog":
+        from pathlib import Path
+        out={"rows":export_catalog(app.db,Path(args.output))}
+    elif args.command=="import-cnpj":
+        out=import_cnpj(app.db,args.establishments,args.municipalities,args.companies,args.state)
+    elif args.command=="sync-cnpj":
+        out=sync_cnpj(app.db,settings.db_path.parent/"cnpj-cache")
     else:
         app.db.add_city(args.city,args.state,args.priority)
         out={"added":f"{args.city}/{args.state}","priority":args.priority}

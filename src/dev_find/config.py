@@ -25,6 +25,7 @@ def _int(name: str, default: int) -> int:
 class Settings:
     db_path: Path = Path(os.getenv("DEV_FIND_DB", "./data/dev-find.db"))
     cities_file: Path = Path(os.getenv("CITIES_FILE", "config/cities.csv"))
+    cities_scope: str = os.getenv("CITIES_SCOPE", "BR")
     dry_run: bool = _bool("DRY_RUN", True)
     timezone: str = os.getenv("TIMEZONE", "America/Sao_Paulo")
     loop_seconds: int = _int("LOOP_SECONDS", 300)
