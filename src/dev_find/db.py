@@ -116,6 +116,9 @@ class Database:
     def init(self) -> None:
         with self.connect() as con:
             con.executescript(SCHEMA)
+            columns={row["name"] for row in con.execute("PRAGMA table_info(companies)")}
+            if "cnpj_basic" not in columns:
+                con.execute("ALTER TABLE companies ADD COLUMN cnpj_basic TEXT")
 
     def seed_cities(self, csv_path: Path) -> None:
         if not csv_path.exists():
@@ -223,6 +226,7 @@ class Database:
         JOIN contacts ct ON ct.company_id=c.id AND ct.active=1
         LEFT JOIN applications a ON a.company_id=c.id
         WHERE c.active=1
+          AND NOT EXISTS (SELECT 1 FROM registry_exclusions e WHERE e.cnpj_basic=c.cnpj_basic)
           AND ct.id=(SELECT id FROM contacts x WHERE x.company_id=c.id AND x.active=1
                      ORDER BY x.score DESC,x.id ASC LIMIT 1)
           AND (a.id IS NULL OR (a.status='failed' AND a.attempts<? AND
@@ -290,6 +294,8 @@ class Database:
             con.execute("""UPDATE registry_establishments
                 SET company_id=?,next_lookup_at=?,last_error=? WHERE cnpj=?""",
                 (company_id,iso(utcnow()+timedelta(days=7)),error[:1000],cnpj))
+            if company_id is not None:
+                con.execute("UPDATE companies SET cnpj_basic=? WHERE id=?", (cnpj[:8],company_id))
 
     def stats(self) -> dict[str, int]:
         with self.connect() as con:
