@@ -66,6 +66,15 @@ CREATE TABLE IF NOT EXISTS applications (
     last_error TEXT
 );
 
+CREATE TABLE IF NOT EXISTS runtime (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS registry_establishments (
+    cnpj TEXT PRIMARY KEY, cnpj_basic TEXT NOT NULL, trade_name TEXT NOT NULL,
+    legal_name TEXT NOT NULL DEFAULT '', city TEXT NOT NULL, state TEXT NOT NULL,
+    cnae TEXT NOT NULL, imported_at TEXT NOT NULL, company_id INTEGER,
+    next_lookup_at TEXT, last_error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_registry_lookup ON registry_establishments(company_id,next_lookup_at);
+CREATE TABLE IF NOT EXISTS registry_exclusions (cnpj_basic TEXT PRIMARY KEY);
 CREATE INDEX IF NOT EXISTS idx_city_due ON cities(active, next_scan_at, priority);
 CREATE INDEX IF NOT EXISTS idx_contacts_company_score ON contacts(company_id, active, score);
 CREATE INDEX IF NOT EXISTS idx_app_status ON applications(status, next_attempt_at);
@@ -259,9 +268,33 @@ class Database:
                 (error[:1000], iso(retry), application_id),
             )
 
+    def list_contacts(self):
+        with self.connect() as con:
+            return [dict(r) for r in con.execute("""SELECT c.id company_id,c.name company_name,
+                c.domain,c.website,c.city,c.state,0 verified,'' cnpj_basic,
+                ct.email,ct.kind,ct.score,ct.source_url,ct.discovered_at,ct.active,
+                a.status application_status
+                FROM companies c JOIN contacts ct ON ct.company_id=c.id
+                LEFT JOIN applications a ON a.company_id=c.id
+                ORDER BY c.state,c.city,c.name,ct.score DESC""")]
+
+    def next_registry_company(self):
+        with self.connect() as con:
+            return con.execute("""SELECT * FROM registry_establishments
+                WHERE company_id IS NULL AND (trade_name!='' OR legal_name!='')
+                AND (next_lookup_at IS NULL OR next_lookup_at<=?)
+                ORDER BY COALESCE(next_lookup_at,''),cnpj LIMIT 1""",(iso(),)).fetchone()
+
+    def mark_registry_lookup(self, cnpj, company_id, error=''):
+        with self.connect() as con:
+            con.execute("""UPDATE registry_establishments
+                SET company_id=?,next_lookup_at=?,last_error=? WHERE cnpj=?""",
+                (company_id,iso(utcnow()+timedelta(days=7)),error[:1000],cnpj))
+
     def stats(self) -> dict[str, int]:
         with self.connect() as con:
             return {
+                "registry_establishments": int(con.execute("SELECT COUNT(*) FROM registry_establishments").fetchone()[0]),
                 "cities": int(con.execute("SELECT COUNT(*) n FROM cities WHERE active=1").fetchone()["n"]),
                 "companies": int(con.execute("SELECT COUNT(*) n FROM companies WHERE active=1").fetchone()["n"]),
                 "contacts": int(con.execute("SELECT COUNT(*) n FROM contacts WHERE active=1").fetchone()["n"]),
