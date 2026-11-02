@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from .config import Settings
 from .crawler import WebsiteCrawler
 from .db import Database, utcnow
+from .catalog import import_cities
 from .discovery import SearchDiscovery
 from .emailer import Mailer
 
@@ -44,6 +45,35 @@ class DevFind:
         finally:
             crawler.close()
         return {"companies":companies,"contacts":contacts}
+
+    def scan_registry_company(self) -> bool:
+        row=self.db.next_registry_company()
+        if not row:
+            return False
+        name=row["trade_name"] or row["legal_name"]
+        selected=None
+        try:
+            candidates=self.discovery.discover_registered(name,row["city"],row["state"])
+            crawler=WebsiteCrawler(self.s)
+            try:
+                for candidate in candidates:
+                    result=crawler.crawl(candidate.website,candidate.domain)
+                    if not result.contacts:
+                        continue
+                    cid=self.db.upsert_company(name,candidate.domain,candidate.website,
+                                              row["city"],row["state"],candidate.source,candidate.source_query)
+                    self.db.set_careers_signal(cid,result.careers_signal)
+                    for contact in result.contacts:
+                        self.db.upsert_contact(cid,contact.email,contact.kind,contact.score,contact.source_url)
+                    selected=cid
+                    break
+            finally:
+                crawler.close()
+            self.db.mark_registry_lookup(row["cnpj"],selected,
+                "" if selected else "Site/canal público não confirmado")
+        except Exception as exc:
+            self.db.mark_registry_lookup(row["cnpj"],None,type(exc).__name__)
+        return True
 
     def scan_next_due_city(self) -> bool:
         row=self.db.next_due_city()
@@ -98,7 +128,16 @@ class DevFind:
     def daemon(self) -> None:
         log.info("daemon_start dry_run=%s db=%s",self.s.dry_run,self.s.db_path)
         while True:
+            if self.s.cities_scope=="BR":
+                with self.db.connect() as con:
+                    loaded=con.execute("SELECT value FROM runtime WHERE key='cities_scope_BR'").fetchone()
+                if not loaded:
+                    try:
+                        import_cities(self.db)
+                    except Exception as exc:
+                        log.warning("ibge_import_failed reason=%s",type(exc).__name__)
             self.scan_next_due_city()
+            self.scan_registry_company()
             result=self.send_once()
             sleep_for=self.s.loop_seconds
             if result and result.get("sent"):
