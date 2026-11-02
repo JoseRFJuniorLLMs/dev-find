@@ -63,5 +63,5 @@ jobs:
           SSH_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15)
           scp "${SSH_OPTS[@]}" "$archive" "$VM_SSH_USER@$VM_SSH_HOST:$archive"
           ssh "${SSH_OPTS[@]}" "$VM_SSH_USER@$VM_SSH_HOST" \
-            "sudo -n bash -s -- $archive ${GITHUB_SHA}" < deploy/ci_update.sh
+            "sudo -n /usr/local/sbin/dev-find-ci-deploy $archive ${GITHUB_SHA}"
           echo "Deploy concluído: ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
